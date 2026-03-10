@@ -9,6 +9,11 @@ config :aitlas, AitlasWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "test_secret_key_base_not_for_production_at_least_64_chars_1234"
 
-config :aitlas, Oban, testing: :inline
+config :aitlas, Oban,
+  repo: Aitlas.Repo,
+  testing: :inline
+
+config :aitlas,
+  mcp_api_key: "test-mcp-api-key-12345"
 
 config :logger, level: :warning

@@ -1,19 +1,40 @@
 defmodule Aitlas.Credits do
+  @moduledoc """
+  Credit ledger operations for Aitlas.
+
+  Provides an append-only credit system where:
+  - Users have a balance tracked via ledger entries
+  - Each entry records amount, balance snapshot, and reason
+  - All mutations use transactions for consistency
+
+  ## Operations
+
+  - `get_balance/1` - Get current balance
+  - `has_credits?/2` - Check if user has enough credits
+  - `reserve/3` - Reserve credits before execution
+  - `deduct/4` - Deduct credits after execution
+  - `refund/3` - Refund unused credits
+  - `grant/4` - Grant credits (purchase, promo)
+  """
+
   import Ecto.Query
-  alias Aitlas.Repo
+
   alias Aitlas.Credits.LedgerEntry
+  alias Aitlas.Repo
 
   @doc """
   Get current balance for a user.
   Reads the most recent ledger balance snapshot.
+  Returns 0 if user has no entries.
   """
   def get_balance(user_id) do
     query =
-      from l in LedgerEntry,
+      from(l in LedgerEntry,
         where: l.user_id == ^user_id,
-        order_by: [desc: l.inserted_at],
+        order_by: [desc: l.id],
         limit: 1,
         select: l.balance
+      )
 
     Repo.one(query) || 0
   end

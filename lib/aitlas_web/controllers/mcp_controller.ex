@@ -1,4 +1,11 @@
 defmodule AitlasWeb.MCPController do
+  @moduledoc """
+  MCP (Model Context Protocol) controller.
+
+  Handles JSON-RPC 2.0 requests at POST /api/mcp.
+  Dispatches to `Aitlas.MCP.Dispatcher` for method handling.
+  """
+
   use AitlasWeb, :controller
 
   alias Aitlas.MCP.Dispatcher

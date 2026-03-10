@@ -1,21 +1,23 @@
 defmodule Aitlas.Application do
+  @moduledoc """
+  Application supervisor for Aitlas.
+
+  Supervises:
+  - Aitlas.Repo (Ecto database connection)
+  - Aitlas.PubSub (Phoenix pubsub)
+  - AitlasWeb.Endpoint (Phoenix HTTP server)
+  - Oban (job queue)
+  """
+
   use Application
 
   @impl true
   def start(_type, _args) do
     children = [
-      # DB
       Aitlas.Repo,
-
-      # Phoenix
       {Phoenix.PubSub, name: Aitlas.PubSub},
       AitlasWeb.Endpoint,
-
-      # Oban
-      {Oban, Application.fetch_env!(:aitlas, Oban)},
-
-      # Hammer rate limiting (ETS backend for dev)
-      {Hammer.Backend.ETS, [expiry_ms: 60_000 * 60, cleanup_rate_ms: 60_000 * 10]}
+      {Oban, Application.fetch_env!(:aitlas, Oban)}
     ]
 
     opts = [strategy: :one_for_one, name: Aitlas.Supervisor]

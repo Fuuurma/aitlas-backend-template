@@ -1,20 +1,11 @@
 defmodule AitlasWeb do
   @moduledoc """
-  The entrypoint for defining your web interface, such
-  as controllers, components, channels, and so on.
+  Web interface module for Aitlas.
 
-  This can be used in your application as:
-
-      use AitlasWeb, :controller
-      use AitlasWeb, :html
-
-  The definitions below will be executed for every controller,
-  component, etc, so keep them short and clean, focused
-  on imports, uses and aliases.
-
-  Do NOT define functions inside the quoted expressions
-  below. Instead, define additional modules and import
-  those modules here.
+  Provides:
+  - `use AitlasWeb, :controller` - Phoenix controller setup
+  - `use AitlasWeb, :router` - Phoenix router setup
+  - `use AitlasWeb, :channel` - Phoenix channel setup
   """
 
   def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
@@ -23,7 +14,6 @@ defmodule AitlasWeb do
     quote do
       use Phoenix.Router, helpers: false
 
-      # Import common connection and controller functions to use in pipelines
       import Plug.Conn
       import Phoenix.Controller
     end
@@ -56,9 +46,7 @@ defmodule AitlasWeb do
     end
   end
 
-  @doc """
-  When used, dispatch to the appropriate controller/live_view/etc.
-  """
+  @doc false
   defmacro __using__(which) when is_atom(which) do
     apply(__MODULE__, which, [])
   end

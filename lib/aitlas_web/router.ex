@@ -1,10 +1,29 @@
 defmodule AitlasWeb.Router do
+  @moduledoc """
+  Phoenix router for Aitlas API.
+
+  ## Pipelines
+
+  - `:api` - Base API pipeline (CORS, JSON, session)
+  - `:authenticated` - User session validation
+  - `:internal` - Service-to-service auth
+  - `:mcp_auth` - MCP endpoint auth
+
+  ## Routes
+
+  - GET /api/health - Health check (public)
+  - POST /api/mcp - MCP endpoint (MCP auth)
+  - /internal/* - Internal API (internal auth)
+  - /api/* - User API (session auth)
+  """
+
   use AitlasWeb, :router
 
   pipeline :api do
-    plug :accepts, ["json"]
-    plug :fetch_session
-    plug CORSPlug,
+    plug(:accepts, ["json"])
+    plug(:fetch_session)
+
+    plug(CORSPlug,
       origin: [
         ~r/https:\/\/.*\.aitlas\.xyz/,
         ~r/https:\/\/.*\.f\.xyz/,
@@ -13,41 +32,36 @@ defmodule AitlasWeb.Router do
       ],
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       headers: ["Authorization", "Content-Type", "X-Furma-Internal"]
+    )
   end
 
   pipeline :authenticated do
-    plug AitlasWeb.Plugs.Auth
+    plug(AitlasWeb.Plugs.Auth)
   end
 
   pipeline :internal do
-    plug AitlasWeb.Plugs.InternalAuth
+    plug(AitlasWeb.Plugs.InternalAuth)
   end
 
   pipeline :mcp_auth do
-    plug AitlasWeb.Plugs.MCPAuth
+    plug(AitlasWeb.Plugs.MCPAuth)
   end
 
-  # ── Health (public) ─────────────────────────────────────────
   scope "/api", AitlasWeb do
-    pipe_through :api
-    get "/health", HealthController, :index
+    pipe_through(:api)
+    get("/health", HealthController, :index)
   end
 
-  # ── MCP (requires MCP_API_KEY or internal header) ───────────
   scope "/api", AitlasWeb do
-    pipe_through [:api, :mcp_auth]
-    post "/mcp", MCPController, :handle
+    pipe_through([:api, :mcp_auth])
+    post("/mcp", MCPController, :handle)
   end
 
-  # ── Internal API (Nexus → Action) ───────────────────────────
   scope "/internal", AitlasWeb do
-    pipe_through [:api, :internal]
-    # Add internal-only routes here
+    pipe_through([:api, :internal])
   end
 
-  # ── Authenticated API (user session) ────────────────────────
   scope "/api", AitlasWeb do
-    pipe_through [:api, :authenticated]
-    # Add user-facing API routes here
+    pipe_through([:api, :authenticated])
   end
 end

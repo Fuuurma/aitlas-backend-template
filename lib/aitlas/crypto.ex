@@ -1,9 +1,26 @@
 defmodule Aitlas.Crypto do
+  @moduledoc """
+  AES-256-GCM encryption for BYOK (Bring Your Own Key) API keys.
+
+  Provides secure encryption/decryption for storing user API keys.
+  Uses AES-256-GCM with a 12-byte IV for authenticated encryption.
+
+  ## Security Notes
+
+  - NEVER assign `decrypt/2` result to a variable for logging
+  - ALWAYS use decrypted values inline and discard immediately
+  - The encryption key is loaded from `ENCRYPTION_KEY` env var
+  """
+
   @aad "aitlas-api-key-v1"
 
   @doc """
   Encrypt an API key with AES-256-GCM.
   Returns {ciphertext_base64, iv_base64}.
+
+  ## Example
+
+      {encrypted, iv} = Crypto.encrypt("sk-xxx")
 
   IMPORTANT: Never assign the result to a named variable in logs.
   Always use inline in DB insert.

@@ -19,8 +19,7 @@ database_url =
 config :aitlas, Aitlas.Repo,
   url: database_url,
   ssl: [verify: :verify_none],
-  pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-  socket_options: [:inet6]
+  pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
 
 secret_key_base =
   System.get_env("SECRET_KEY_BASE") ||
@@ -35,11 +34,15 @@ config :aitlas, AitlasWeb.Endpoint,
   secret_key_base: secret_key_base
 
 config :aitlas,
-  better_auth_secret: System.get_env("BETTER_AUTH_SECRET") ||
-    raise("BETTER_AUTH_SECRET is missing"),
-  furma_internal_secret: System.get_env("FURMA_INTERNAL_SECRET") ||
-    raise("FURMA_INTERNAL_SECRET is missing"),
-  encryption_key: System.get_env("ENCRYPTION_KEY") ||
-    raise("ENCRYPTION_KEY is missing"),
-  mcp_api_key: System.get_env("MCP_API_KEY") ||
-    raise("MCP_API_KEY is missing")
+  better_auth_secret:
+    System.get_env("BETTER_AUTH_SECRET") ||
+      raise("BETTER_AUTH_SECRET is missing"),
+  furma_internal_secret:
+    System.get_env("FURMA_INTERNAL_SECRET") ||
+      raise("FURMA_INTERNAL_SECRET is missing"),
+  encryption_key:
+    System.get_env("ENCRYPTION_KEY") ||
+      raise("ENCRYPTION_KEY is missing"),
+  mcp_api_key:
+    System.get_env("MCP_API_KEY") ||
+      raise("MCP_API_KEY is missing")

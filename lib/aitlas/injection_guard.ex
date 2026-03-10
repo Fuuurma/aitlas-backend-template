@@ -1,8 +1,15 @@
 defmodule Aitlas.InjectionGuard do
+  @moduledoc """
+  Validates tool calls against injection attacks and allowlists.
+
+  Detects common prompt injection patterns in tool arguments and
+  ensures tools are only called if they're in the agent's allowlist.
+  """
+
   @suspicious_patterns [
     ~r/ignore (previous|all) instructions/i,
     ~r/exfiltrate/i,
-    ~r/reveal (api|secret|key)/i,
+    ~r/reveal.*(api|secret|key)/i,
     ~r/execute (system|shell|bash)/i,
     ~r/call (tool|function) .+ instead/i,
     ~r/system prompt/i,
@@ -12,6 +19,14 @@ defmodule Aitlas.InjectionGuard do
   @doc """
   Validate a tool call against an agent's allowlist and injection patterns.
   Returns :ok or {:error, reason}
+
+  ## Examples
+
+      iex> InjectionGuard.validate("search", %{"query" => "hello"}, ["search"])
+      :ok
+
+      iex> InjectionGuard.validate("delete", %{}, ["search"])
+      {:error, :tool_not_in_allowlist}
   """
   def validate(tool_name, arguments, allowlist) do
     cond do

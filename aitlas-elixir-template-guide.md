@@ -103,11 +103,17 @@ defp deps do
     {:cors_plug, "~> 3.0"},
 
     # Rate limiting
-    {:hammer, "~> 7.0"},
-    {:hammer_plug, "~> 3.0"},
+    {:hammer, "~> 6.0"},
+    {:hammer_plug, "~> 2.0"},
 
     # JWT / token validation
     {:joken, "~> 2.6"},
+
+    # Vector search (for memory)
+    {:pgvector, "~> 0.2"},
+
+    # Internationalization
+    {:gettext, "~> 0.24"},
 
     # Crypto (AES-256-GCM for BYOK key encryption)
     # Built into Erlang :crypto — no extra dep needed
@@ -205,8 +211,13 @@ config :aitlas_elixir_template,
 
 config :phoenix, :json_library, Jason
 
+# Hammer rate limiting (ETS backend)
+config :hammer,
+  backend: {Hammer.Backend.ETS, [expiry_ms: 60_000 * 60, cleanup_interval_ms: 60_000 * 10]}
+
 # Oban
 config :aitlas_elixir_template, Oban,
+  repo: AitlasElixirTemplate.Repo,
   engine: Oban.Engines.Basic,
   queues: [
     default: 10,
@@ -216,10 +227,15 @@ config :aitlas_elixir_template, Oban,
     files: 5
   ],
   plugins: [
-    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},     # prune after 7 days
+    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
     {Oban.Plugins.Stager, interval: 1_000},
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)}
   ]
+
+# Logger with secrets redaction
+config :logger, :console,
+  format: {AitlasElixirTemplate.LoggerRedactor, :redact},
+  metadata: [:request_id, :user_id, :task_id]
 
 import_config "#{config_env()}.exs"
 ```
@@ -264,7 +280,12 @@ config :aitlas_elixir_template, AitlasElixirTemplateWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "test_secret_key_base_not_for_production_at_least_64_chars_1234"
 
-config :aitlas_elixir_template, Oban, testing: :inline
+config :aitlas_elixir_template, Oban,
+  repo: AitlasElixirTemplate.Repo,
+  testing: :inline
+
+config :aitlas_elixir_template,
+  mcp_api_key: "test-mcp-api-key-12345"
 
 config :logger, level: :warning
 ```
@@ -293,8 +314,8 @@ database_url =
 config :aitlas_elixir_template, AitlasElixirTemplate.Repo,
   url: database_url,
   ssl: [verify: :verify_none],
-  pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-  socket_options: [:inet6]
+  pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
+  # socket_options: [:inet6]  # Uncomment if IPv6-only network
 
 secret_key_base =
   System.get_env("SECRET_KEY_BASE") ||
@@ -336,7 +357,7 @@ defmodule AitlasElixirTemplate.Repo do
   Execute a function inside a transaction.
   Use this for ALL credit mutations.
   """
-  def transact(fun) do
+  def with_transaction(fun) do
     transaction(fn ->
       case fun.() do
         {:error, reason} -> rollback(reason)
@@ -445,7 +466,29 @@ defmodule AitlasElixirTemplate.Repo.Migrations.CreateApiKeysAndCredits do
 end
 ```
 
-### 6d. Run migrations
+### 6d. Oban jobs table migration
+
+```bash
+mix ecto.gen.migration add_oban_jobs_table
+```
+
+Edit the generated migration:
+
+```elixir
+defmodule AitlasElixirTemplate.Repo.Migrations.AddObanJobsTable do
+  use Ecto.Migration
+
+  def up do
+    Oban.Migrations.up(version: 13)
+  end
+
+  def down do
+    Oban.Migrations.down(version: 13)
+  end
+end
+```
+
+### 6e. Run migrations
 
 ```bash
 # Against Neon (use unpooled URL for migrations)
@@ -592,7 +635,7 @@ defmodule AitlasElixirTemplate.Credits do
     query =
       from l in LedgerEntry,
         where: l.user_id == ^user_id,
-        order_by: [desc: l.inserted_at],
+        order_by: [desc: l.id],
         limit: 1,
         select: l.balance
 
@@ -611,7 +654,7 @@ defmodule AitlasElixirTemplate.Credits do
   Returns {:ok, reservation_id} or {:error, :insufficient_credits}
   """
   def reserve(user_id, amount, reference_id) do
-    Repo.transact(fn ->
+    Repo.with_transaction(fn ->
       current = get_balance(user_id)
 
       if current < amount do
@@ -626,7 +669,7 @@ defmodule AitlasElixirTemplate.Credits do
   Deduct credits after successful tool execution.
   """
   def deduct(user_id, amount, reason, reference_id) do
-    Repo.transact(fn ->
+    Repo.with_transaction(fn ->
       current = get_balance(user_id)
       append_entry(user_id, -amount, current - amount, reason, reference_id)
     end)
@@ -636,7 +679,7 @@ defmodule AitlasElixirTemplate.Credits do
   Refund credits (failed task, unused reservation).
   """
   def refund(user_id, amount, reference_id) do
-    Repo.transact(fn ->
+    Repo.with_transaction(fn ->
       current = get_balance(user_id)
       append_entry(user_id, amount, current + amount, "refund", reference_id)
     end)
@@ -646,7 +689,7 @@ defmodule AitlasElixirTemplate.Credits do
   Grant credits (subscription, purchase, promo).
   """
   def grant(user_id, amount, reason, reference_id \\ nil) do
-    Repo.transact(fn ->
+    Repo.with_transaction(fn ->
       current = get_balance(user_id)
       append_entry(user_id, amount, current + amount, reason, reference_id)
     end)
@@ -1186,7 +1229,7 @@ Create `AGENTS.md` at project root:
 
 ## Key Files
 - `config/runtime.exs` — all runtime env vars (validate at boot)
-- `lib/*/repo.ex` — Ecto repo + transact/1 helper
+- `lib/*/repo.ex` — Ecto repo + with_transaction/1 helper
 - `lib/*/crypto.ex` — AES-256-GCM for BYOK key encryption
 - `lib/*/credits.ex` — append-only credit ledger
 - `lib/*/injection_guard.ex` — tool call validation
@@ -1201,7 +1244,7 @@ Create `AGENTS.md` at project root:
 
 ### Security (non-negotiable)
 - `Crypto.decrypt/2` result: NEVER assign to variable, NEVER log, use inline only
-- ALL DB mutations: use `Repo.transact/1`
+- ALL DB mutations: use `Repo.with_transaction/1`
 - ALL user inputs: validate with Ecto changesets
 - user_id: present in ALL DB queries — no cross-tenant access
 - Credits: deduct ONLY after successful execution

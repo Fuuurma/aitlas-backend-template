@@ -1,7 +1,13 @@
 defmodule Aitlas.MCP.Tools do
   @moduledoc """
   MCP Tools registry and execution.
-  Add your tool definitions here.
+
+  Add tool definitions to `list/0` and implement them in `call/3`.
+  Each tool has:
+  - `name` - Unique identifier
+  - `description` - Human-readable description
+  - `inputSchema` - JSON Schema for arguments
+  - `creditCost` - Credits consumed per call
   """
 
   @doc """
@@ -46,22 +52,22 @@ defmodule Aitlas.MCP.Tools do
     _context = Map.get(args, "context", %{})
     user_id = Map.get(assigns, :current_user_id)
 
-    # TODO: Implement actual agent execution
-    {:ok, %{
-      content: [%{type: "text", text: "Agent #{agent_id} executing: #{task}"}],
-      task_id: "task_#{:erlang.unique_integer([:positive])}",
-      user_id: user_id
-    }}
+    {:ok,
+     %{
+       content: [%{type: "text", text: "Agent #{agent_id} executing: #{task}"}],
+       task_id: "task_#{:erlang.unique_integer([:positive])}",
+       user_id: user_id
+     }}
   end
 
   def call("get_task_status", %{"task_id" => task_id}, _assigns) do
-    # TODO: Implement actual status lookup
-    {:ok, %{
-      content: [%{type: "text", text: "Task #{task_id} status: running"}]
-    }}
+    {:ok,
+     %{
+       content: [%{type: "text", text: "Task #{task_id} status: running"}]
+     }}
   end
 
   def call(name, _arguments, _assigns) do
-    {:error, %{code: -32601, message: "Tool not found: #{name}"}}
+    {:error, %{code: -32_601, message: "Tool not found: #{name}"}}
   end
 end
