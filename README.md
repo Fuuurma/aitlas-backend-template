@@ -2,110 +2,217 @@
 
 > ⚠️ **Proprietary** — All Aitlas products are **closed source**. No open source license.
 
-Inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch) — AI agents that iteratively improve code by running experiments.
+**Inspired by:** [karpathy/autoresearch](https://github.com/karpathy/autoresearch)
 
-## Stack
+---
 
-- Elixir 1.18 + OTP 27
-- Phoenix 1.7 (API mode)
-- Oban 2.19 (job queue)
-- Ecto + Postgrex (Neon Postgres)
-- MCP Server (JSON-RPC 2.0)
-- Docker/Firecracker (sandbox execution)
+## Overview
 
-## Quick Start
+f.improve is an autonomous code improvement system. Like autoresearch, it uses AI agents to iteratively improve code by running experiments and measuring results.
 
-```bash
-# Setup
-make setup
-
-# Start server
-make dev
+**The Loop:**
+```
+ANALYZE → HYPOTHESIZE → EXPERIMENT → MEASURE → ITERATE
 ```
 
-Visit `http://localhost:4000/api/health`
+---
 
-## How It Works
+## Repositories
 
-Like autoresearch but for any code:
+| Component | Repo | Stack |
+|-----------|------|-------|
+| **Backend** | `f-improve` | Elixir + Phoenix + Oban |
+| **Frontend** | `f-improve-frontend` | Next.js 16 + shadcn/ui |
 
-```
-1. ANALYZE   - Read code, run baseline benchmark
-2. HYPOTHESIZE - Agent proposes improvement
-3. EXPERIMENT  - Apply change, run benchmark
-4. MEASURE     - Compare metrics (keep/discard)
-5. ITERATE     - Repeat until plateau
-```
+---
 
-## The Autoresearch Pattern
+## Backend Architecture
 
-| Component | Autoresearch | f.improve |
-|-----------|--------------|-----------|
-| **Instructions** | program.md | improvement_program.md |
-| **Modifiable** | train.py | user's code |
-| **Fixed utilities** | prepare.py | benchmark runner |
-| **Metric** | val_bpb | user-defined (speed, quality, etc.) |
-| **Time budget** | 5 minutes | 5 minutes (configurable) |
-| **Log** | results.tsv | experiments table |
-
-## API
-
-### MCP Endpoint
-
-```json
-POST /api/mcp
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "improve_code",
-    "arguments": {
-      "code": "...",
-      "benchmark": "...",
-      "goal": "performance",
-      "iterations": 10
-    }
-  }
-}
-```
-
-### REST API
-
-```bash
-# Create improvement job
-POST /api/jobs
-{
-  "code": "...",
-  "benchmark": "npm test",
-  "goal": "performance"
-}
-
-# Get job status
-GET /api/jobs/:id
-
-# Get experiment log
-GET /api/jobs/:id/experiments
-```
-
-## Project Structure
+### Core Modules
 
 ```
 lib/f_improve/
-├── accounts/          # User and session schemas
-├── experiments/       # Experiment management
-├── sandbox/           # Docker/Firecracker execution
-├── improvement/       # Improvement loop logic
-├── mcp/               # MCP tools
-├── workers/           # Oban workers
-└── application.ex
+├── f_improve.ex              # Improvement loop
+├── sandbox.ex                # Docker execution
+├── jobs.ex + jobs/job.ex     # Job management
+├── experiments.ex + experiments/experiment.ex  # Experiment tracking
+├── mcp/tools.ex              # MCP endpoint
+├── workers/improvement_worker.ex  # Oban worker
+└── accounts/session.ex       # Auth
+
+lib/f_improve_web/
+├── router.ex                 # API routes
+├── plugs/auth.ex             # Bearer token auth
+├── controllers/
+│   ├── jobs_controller.ex
+│   └── experiments_controller.ex
 ```
 
-## Commands
+### API Endpoints
 
-| Command | Description |
-|---------|-------------|
-| `make setup` | Install deps, setup DB |
-| `make dev` | Start Phoenix server |
-| `make test` | Run tests |
-| `make sandbox` | Start Docker sandbox |
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/health` | GET | No | Health check |
+| `/api/mcp` | POST | No | MCP endpoint |
+| `/api/jobs` | GET | Yes | List jobs |
+| `/api/jobs` | POST | Yes | Create job |
+| `/api/jobs/:id` | GET | Yes | Get job |
+| `/api/jobs/:id/experiments` | GET | Yes | Get experiments |
+| `/api/experiments/:job_id` | GET | Yes | List experiments |
+| `/api/experiments/:job_id/tsv` | GET | Yes | Download TSV |
+
+### MCP Tools
+
+| Tool | Input | Output |
+|------|-------|--------|
+| `improve_code` | `{code, benchmark, goal, iterations}` | `{job_id, status}` |
+| `quick_scan` | `{code, goal}` | `{suggestions}` |
+| `get_experiments` | `{job_id}` | `{experiments}` |
+
+---
+
+## Frontend Architecture
+
+### Components
+
+```
+src/
+├── app/
+│   └── improve/
+│       └── page.tsx          # Main dashboard
+├── components/
+│   ├── improvement-form.tsx  # Code input form
+│   └── experiment-log.tsx    # Real-time experiment viewer
+└── lib/
+    └── api.ts                # API client
+```
+
+### Features
+
+- ✅ Code editor with syntax highlighting
+- ✅ Benchmark command input
+- ✅ Goal selection (performance, quality, coverage, bugs, refactor)
+- ✅ Iteration count configuration
+- ✅ Real-time experiment polling (2s interval)
+- ✅ Status badges (keep/discard/crash)
+- ✅ Metrics display (time, memory)
+- ✅ TSV export (like autoresearch's results.tsv)
+
+---
+
+## The Autoresearch Pattern
+
+| Autoresearch | f.improve |
+|--------------|-----------|
+| `program.md` | Task input + goal |
+| `train.py` | User's code |
+| `prepare.py` | Benchmark runner |
+| `val_bpb` | User-defined metric |
+| `results.tsv` | experiments table |
+| 5-min time budget | 5-min sandbox execution |
+| Git branches | Job tags |
+| Commit hash | Experiment commit |
+
+---
+
+## Database Schema
+
+### jobs
+```sql
+id: uuid (PK)
+user_id: string
+tag: string
+code: text
+benchmark: string
+goal: string
+iterations: integer
+status: string
+best_code: text
+improvement_percent: float
+created_at: timestamp
+updated_at: timestamp
+```
+
+### experiments
+```sql
+id: uuid (PK)
+job_id: uuid (FK)
+iteration: integer
+commit: string
+hypothesis: text
+change: text
+metric_value: float
+memory_gb: float
+status: string (keep|discard|crash)
+description: text
+code_snapshot: text
+created_at: timestamp
+```
+
+---
+
+## Usage
+
+### Start Backend
+```bash
+cd f-improve
+make setup
+make dev
+# Server runs on localhost:4000
+```
+
+### Start Frontend
+```bash
+cd f-improve-frontend
+npm install
+npm run dev
+# App runs on localhost:3000
+```
+
+### Create Improvement Job
+```bash
+curl -X POST http://localhost:4000/api/jobs \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "function fibonacci(n) { ... }",
+    "benchmark": "node bench.js",
+    "goal": "performance",
+    "iterations": 10
+  }'
+```
+
+---
+
+## Next Steps
+
+1. **Backend:**
+   - [ ] Add Docker sandbox implementation
+   - [ ] Add LLM integration for hypothesis generation
+   - [ ] Add metrics parsing
+   - [ ] Test MCP endpoint
+
+2. **Frontend:**
+   - [ ] Add code diff viewer
+   - [ ] Add job history page
+   - [ ] Add real-time SSE updates
+   - [ ] Add results export
+
+3. **Integration:**
+   - [ ] Add to aitlas-docs
+   - [ ] Create action spec
+   - [ ] Deploy to production
+
+---
+
+## Credits
+
+| Operation | Credits |
+|-----------|---------|
+| `improve_code` | 10 |
+| `quick_scan` | 5 |
+| `get_experiments` | 0 |
+
+---
+
+*Created: March 12, 2026*
