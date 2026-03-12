@@ -7,6 +7,12 @@
         # Built-in Credo checks
         {Credo.Check.Consistency.TabsOrSpaces, []},
 
+        # ex_dna - code duplication (replaces built-in DuplicatedCode)
+        {ExDNA.Credo, [min_mass: 25, literal_mode: :abstract]},
+
+        # Disable built-in duplication check (ex_dna is better)
+        {Credo.Check.Design.DuplicatedCode, false},
+
         # ex_slop checks - AI-generated code slop
         # Warnings
         {ExSlop.Check.Warning.BlanketRescue, []},
