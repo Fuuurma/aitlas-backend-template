@@ -29,6 +29,7 @@ defmodule FImproveWeb.Router do
     post "/jobs", JobsController, :create
     get "/jobs/:id", JobsController, :show
     get "/jobs/:id/experiments", JobsController, :experiments
+    get "/jobs/:id/stream", SSEController, :stream  # SSE endpoint
     
     # Experiments (like results.tsv)
     get "/experiments/:job_id", ExperimentsController, :index
