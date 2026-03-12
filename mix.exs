@@ -1,9 +1,9 @@
-defmodule Aitlas.MixProject do
+defmodule FImprove.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :aitlas,
+      app: :f_improve,
       version: "0.1.0",
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -15,7 +15,7 @@ defmodule Aitlas.MixProject do
 
   def application do
     [
-      mod: {Aitlas.Application, []},
+      mod: {FImprove.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
