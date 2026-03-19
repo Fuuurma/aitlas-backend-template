@@ -7,7 +7,7 @@ config :aitlas, Aitlas.Repo,
   pool_size: 5
 
 config :aitlas, AitlasWeb.Endpoint,
-  http: [ip: {127, 0, 0, 1}, port: 4000],
+  http: [ip: {127, 0, 0, 1}, port: 3100],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
