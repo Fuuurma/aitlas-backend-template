@@ -52,7 +52,17 @@ defmodule AitlasWeb.Router do
     get("/health", HealthController, :index)
   end
 
-  scope "/api", AitlasWeb do
+  # MCP endpoint (Hermes-based)
+  scope "/api/mcp", AitlasWeb do
+    pipe_through(:api)
+    # Hermes handles its own auth via frame.assigns
+    forward("/", Hermes.Server.Transport.StreamableHTTP.Plug,
+      init_opts: [server: Aitlas.MCP.Server]
+    )
+  end
+
+  # Legacy MCP endpoint (deprecated - will be removed)
+  scope "/api/legacy", AitlasWeb do
     pipe_through([:api, :mcp_auth])
     post("/mcp", MCPController, :handle)
   end

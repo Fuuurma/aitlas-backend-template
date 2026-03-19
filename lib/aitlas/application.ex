@@ -15,6 +15,7 @@ defmodule Aitlas.Application do
   def start(_type, _args) do
     children = [
       Aitlas.Repo,
+      Hermes.Server.Registry,
       {Phoenix.PubSub, name: Aitlas.PubSub},
       AitlasWeb.Endpoint,
       {Oban, Application.fetch_env!(:aitlas, Oban)}

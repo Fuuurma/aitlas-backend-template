@@ -54,6 +54,9 @@ defmodule FImprove.MixProject do
       # Vector search (for memory)
       {:pgvector, "~> 0.2"},
 
+      # MCP SDK (Model Context Protocol)
+      {:hermes_mcp, "~> 0.14"},
+
       # Telemetry / observability
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.1"},
