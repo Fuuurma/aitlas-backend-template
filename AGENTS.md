@@ -143,6 +143,44 @@ json(conn, Response.validation_error(%{email: ["invalid format"]}))
 {:ok, Response.mcp_resource("file://data", "Data", "text/plain", content)}
 ```
 
+### Health Checks (`Aitlas.Health`)
+
+```elixir
+alias Aitlas.Health
+
+# Basic check
+Health.check()  # %{status: "ok", service: "aitlas", ...}
+
+# Readiness (Kubernetes)
+case Health.ready?() do
+  :ok -> # all dependencies healthy
+  {:error, failed} -> # some checks failed
+end
+
+# Detailed check
+Health.detailed()  # includes all dependency checks
+```
+
+### Rate Limiting (`AitlasWeb.Plugs.RateLimit`)
+
+```elixir
+# In router
+plug AitlasWeb.Plugs.RateLimit, limit: :api
+plug AitlasWeb.Plugs.RateLimit, max: 50, window_ms: 60_000
+plug AitlasWeb.Plugs.RateLimit, key: :user_id
+```
+
+### Request ID Tracking (`AitlasWeb.Plugs.RequestId`)
+
+```elixir
+# In pipeline
+plug AitlasWeb.Plugs.RequestId
+
+# Access in handlers
+request_id = conn.assigns.request_id
+Logger.info("Processing", request_id: request_id)
+```
+
 ## Authentication
 
 ### Better Auth Integration
