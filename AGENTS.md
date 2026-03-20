@@ -91,6 +91,8 @@ def get_balance(user_id), do: # ...
 - `lib/aitlas/repo.ex` — Ecto repo + with_transaction/1
 - `lib/aitlas/crypto.ex` — AES-256-GCM encryption
 - `lib/aitlas/credits.ex` — credit ledger
+- `lib/aitlas/errors.ex` — structured error types
+- `lib/aitlas/response.ex` — JSON response formatting
 - `lib/aitlas/injection_guard.ex` — tool validation
 - `lib/aitlas/logger_redactor.ex` — secrets redaction
 - `lib/aitlas/shared_schema.ex` — shared schema imports
@@ -98,6 +100,48 @@ def get_balance(user_id), do: # ...
 - `lib/aitlas/mcp/server.ex` — Hermes MCP server
 - `lib/aitlas/mcp/tools/` — MCP tool modules
 - `lib/aitlas/workers/` — Oban workers
+
+## Utility Modules
+
+### Error Handling (`Aitlas.Errors`)
+
+```elixir
+alias Aitlas.Errors
+
+# Create errors
+error = Errors.insufficient_credits(100, 50)
+# %Errors{code: :insufficient_credits, message: "Insufficient credits", details: %{...}}
+
+# Pattern match
+with {:ok, result} <- do_work() do
+  {:ok, result}
+else
+  {:error, :not_found} -> Errors.not_found("User")
+end
+
+# Convert to message
+Errors.to_message(error) # "Insufficient credits"
+```
+
+### Response Formatting (`Aitlas.Response`)
+
+```elixir
+alias Aitlas.Response
+
+# Success
+json(conn, Response.success(user))
+
+# Paginated
+json(conn, Response.paginated(items, page: 1, total: 100))
+
+# Errors
+json(conn, Response.not_found("User"))
+json(conn, Response.validation_error(%{email: ["invalid format"]}))
+
+# MCP tools
+{:ok, Response.mcp_text("Operation completed")}
+{:ok, Response.mcp_resource("file://data", "Data", "text/plain", content)}
+```
 
 ## Authentication
 

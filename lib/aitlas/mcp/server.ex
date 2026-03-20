@@ -63,6 +63,8 @@ defmodule Aitlas.MCP.Server do
 
   # Register tools as components
   component Aitlas.MCP.Tools.Echo
+  component Aitlas.MCP.Tools.GetCredits
+  component Aitlas.MCP.Tools.GetUser
   # Add more tools here as you create them
 
   @impl true
