@@ -93,9 +93,108 @@ def get_balance(user_id), do: # ...
 - `lib/aitlas/credits.ex` — credit ledger
 - `lib/aitlas/injection_guard.ex` — tool validation
 - `lib/aitlas/logger_redactor.ex` — secrets redaction
-- `lib/aitlas_web/plugs/` — auth plugs
-- `lib/aitlas/mcp/tools.ex` — MCP tools
+- `lib/aitlas/shared_schema.ex` — shared schema imports
+- `lib/aitlas_web/plugs/` — auth plugs (Better Auth compatible)
+- `lib/aitlas/mcp/server.ex` — Hermes MCP server
+- `lib/aitlas/mcp/tools/` — MCP tool modules
 - `lib/aitlas/workers/` — Oban workers
+
+## Authentication
+
+### Better Auth Integration
+
+This template is designed to work with Better Auth session tokens.
+The frontend (Next.js) handles user authentication, and the backend
+validates session tokens against the shared `sessions` table.
+
+### Three Auth Methods
+
+| Method | Header | Use Case |
+|--------|--------|----------|
+| Internal | `x-furma-internal: <secret>` | Service-to-service |
+| External | `Authorization: Bearer <MCP_API_KEY>` | Static API key |
+| Better Auth | `Authorization: Bearer <session_token>` | AI agents via OAuth |
+
+### Validating Sessions
+
+```elixir
+# In plugs
+alias Aitlas.Accounts.Session
+
+case Repo.get_by(Session, token: token) do
+  nil -> {:error, :invalid_session}
+  session -> {:ok, session}
+end
+```
+
+### MCP Authentication Flow
+
+1. AI agent obtains OAuth token from Better Auth (frontend)
+2. Agent calls MCP endpoint with `Authorization: Bearer <token>`
+3. `MCPAuth` plug validates token against `sessions` table
+4. User ID is passed to MCP tools via `frame.assigns.user_id`
+
+## MCP Tools
+
+### Creating a Tool
+
+```elixir
+defmodule Aitlas.MCP.Tools.MyTool do
+  use Hermes.Server.Component, type: :tool
+
+  schema do
+    field(:input, :string, required: true, description: "Input text")
+  end
+
+  @impl true
+  def execute(%{"input" => input}, frame) do
+    user_id = frame.assigns[:user_id]
+    
+    # Business logic here
+    
+    {:ok, %{result: "success"}}
+  end
+end
+```
+
+### Registering Tools
+
+Add to `lib/aitlas/mcp/server.ex`:
+
+```elixir
+component Aitlas.MCP.Tools.MyTool
+```
+
+## Shared Schemas
+
+### Importing Schemas
+
+```elixir
+# Option 1: Use the convenience module
+use Aitlas.SharedSchema  # aliases User, Session, Task, etc.
+
+# Option 2: Direct import
+alias AitlasSchema.Accounts.{User, Session}
+alias AitlasSchema.Tasks.Task
+```
+
+### Available Schemas
+
+| Schema | Table | Description |
+|--------|-------|-------------|
+| `User` | `users` | User accounts |
+| `Session` | `sessions` | Better Auth sessions |
+| `Account` | `accounts` | OAuth accounts |
+| `ApiKey` | `api_keys` | BYOK API keys |
+| `Task` | `tasks` | Agent tasks |
+| `LedgerEntry` | `credit_ledger` | Credit transactions |
+
+### Why Shared Schemas?
+
+1. **Consistency** - Same schema across all services
+2. **Type Safety** - Compile-time validation
+3. **Better Auth** - Compatible with session tokens
+4. **Single Source of Truth** - `aitlas-schema/elixir/`
 
 ## Queues
 - `:default` (pool:10), `:agents` (pool:20), `:tools` (pool:30), `:memory` (pool:5), `:files` (pool:5)

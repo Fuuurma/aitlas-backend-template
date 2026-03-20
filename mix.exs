@@ -57,6 +57,9 @@ defmodule FImprove.MixProject do
       # MCP SDK (Model Context Protocol)
       {:hermes_mcp, "~> 0.14"},
 
+      # Shared schemas (local path)
+      {:nexus_schema, path: "../aitlas-schema/elixir"},
+
       # Telemetry / observability
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.1"},
